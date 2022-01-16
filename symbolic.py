@@ -16,13 +16,20 @@ def sym_to_pytorch(expr, sym_vars):
 	if isinstance(expr, sym.Expression):
 		expr_string = sym_to_pytorch_string(expr, sym_vars)
 		func_string = 'def my_func(x):\n  return ' + expr_string
-	elif isinstance(expr, list):
-			func_string = 'def my_func(x):\n  return torch.tensor(['
-			for expr_i in expr[:-1]:
-				expr_string = sym_to_pytorch_string(expr_i, sym_vars)
-				func_string = func_string + expr_string + ", "
-			expr_string = sym_to_pytorch_string(expr[-1], sym_vars)
-			func_string = func_string + expr_string + '])'
+	elif isinstance(expr, list) or isinstance(expr, np.ndarray):
+		if isinstance(expr, np.ndarray):
+			shape = expr.shape
+			expr = np.reshape(expr, -1)
+		else:
+			shape = (len(expr), 1)
+		func_string = 'def my_func(x):\n  ret = torch.tensor(['
+		for expr_i in expr[:-1]:
+			expr_string = sym_to_pytorch_string(expr_i, sym_vars)
+			func_string = func_string + expr_string + ", "
+		expr_string = sym_to_pytorch_string(expr[-1], sym_vars)
+		func_string = func_string + expr_string + '])\n'
+		func_string = func_string + '  return torch.reshape(ret, ' + str(shape) + ')'
+		print(func_string)
 	else:
 		raise ValueError('expr must be a drake symbolic Expression or a list')
 
