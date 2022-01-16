@@ -9,3 +9,5 @@ This supports both single and vector (via Python lists) expressions, where the
 argument is a single vector.
 
 Future extensions will support variable length arguments.
+
+Requires torch and numpy to be locally installed.
