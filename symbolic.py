@@ -16,25 +16,27 @@ import pydrake.symbolic as sym
 #		sym_args
 # @return A string expressing the entire python function
 def sym_to_pytorch(expr, *sym_args):
+	str_list = []
 	if isinstance(expr, sym.Expression):
-		expr_string = sym_to_pytorch_string(expr, *sym_args)
-		func_string = 'def my_func(*torch_args):\n  return ' + expr_string
+		str_list.append('def my_func(*torch_args):\n  return ')
+		str_list.extend(sym_to_pytorch_string(expr, *sym_args))
 	elif isinstance(expr, list) or isinstance(expr, np.ndarray):
 		if isinstance(expr, np.ndarray):
 			shape = expr.shape
 			expr = np.reshape(expr, -1)
 		else:
 			shape = (len(expr), 1)
-		func_string = 'def my_func(*torch_args):\n  ret = torch.tensor(['
+		str_list.append('def my_func(*torch_args):\n  ret = torch.tensor([')
 		for expr_i in expr[:-1]:
-			expr_string = sym_to_pytorch_string(expr_i, *sym_args)
-			func_string = func_string + expr_string + ", "
-		expr_string = sym_to_pytorch_string(expr[-1], *sym_args)
-		func_string = func_string + expr_string + '])\n'
-		func_string = func_string + '  return torch.reshape(ret, ' + str(shape) + ')'
-		print(func_string)
+			str_list.extend(sym_to_pytorch_string(expr_i, *sym_args))
+			str_list.append(", ")
+		str_list.extend(sym_to_pytorch_string(expr[-1], *sym_args))
+		str_list.append('])\n')
+		str_list.append('  return torch.reshape(ret, ' + str(shape) + ')')
+		# print(func_string)
 	else:
 		raise ValueError('expr must be a drake symbolic Expression or a list')
+	func_string = ''.join(str_list)
 
 	code = compile(func_string, 'tmp.py', 'single')
 	func = types.FunctionType(code.co_consts[0], globals())
@@ -52,29 +54,40 @@ def sym_to_pytorch_string(expr, *sym_args):
 	if isinstance(expr, float):
 		return str(expr)
 
+	str_list = []
+
 	# switch based on the expression kind
 	kind = expr.get_kind()
 	ctor, expr_args = expr.Unapply()
 	if kind == sym.ExpressionKind.Constant:
 		if len(expr_args) != 1:
 			raise ValueError('Unexpected symbolic Constant of length != 1')
-		return str(expr_args[0])
+		return [str(expr_args[0])]
 	elif kind == sym.ExpressionKind.Var:
-		return substitute_variable_string(expr_args[0], *sym_args)
+		return [substitute_variable_string(expr_args[0], *sym_args)]
 	elif kind == sym.ExpressionKind.Add:
-		ret = '(' + sym_to_pytorch_string(expr_args[0], *sym_args)
+		str_list.append('(')
+		str_list.extend(sym_to_pytorch_string(expr_args[0], *sym_args))
 		for arg in expr_args[1:]:
-			ret = ret + ' + ' + sym_to_pytorch_string(arg, *sym_args)
-		return ret + ')'
+			str_list.append(' + ')
+			str_list.extend(sym_to_pytorch_string(arg, *sym_args))
+		str_list.append(')')
+		return str_list
 	elif kind == sym.ExpressionKind.Mul:
-		ret = '(' + sym_to_pytorch_string(expr_args[0], *sym_args)
+		str_list.append('(')
+		str_list.extend(sym_to_pytorch_string(expr_args[0], *sym_args))
 		for arg in expr_args[1:]:
-			ret = ret + ' * ' + sym_to_pytorch_string(arg, *sym_args)
-		return ret + ')'
+			str_list.append(' * ')
+			str_list.extend(sym_to_pytorch_string(arg, *sym_args))
+		str_list.append(')')
+		return str_list
 	elif kind == sym.ExpressionKind.Div:
-		ret = '(' + sym_to_pytorch_string(expr_args[0], *sym_args) + ' / '
-		ret = ret + sym_to_pytorch_string(expr_args[1], *sym_args)
-		return ret + ')'
+		str_list.append('(')
+		str_list.extend(sym_to_pytorch_string(expr_args[0], *sym_args))
+		str_list.append(' / ')
+		str_list.extend(sym_to_pytorch_string(expr_args[1], *sym_args))
+		str_list.append(')')
+		return str_list
 	elif kind == sym.ExpressionKind.Log:
 		return sym_to_pytorch_simple_fun('log', expr_args[0], *sym_args)
 	elif kind == sym.ExpressionKind.Abs:
@@ -82,8 +95,12 @@ def sym_to_pytorch_string(expr, *sym_args):
 	elif kind == sym.ExpressionKind.Exp:
 		return sym_to_pytorch_simple_fun('exp', expr_args[0], *sym_args)
 	elif kind == sym.ExpressionKind.Pow:
-		return 'torch.pow(' + sym_to_pytorch_string(expr_args[0], *sym_args) + \
-			', ' + sym_to_pytorch_string(expr_args[1], *sym_args) + ')'
+		str_list.append('torch.pow(')
+		str_list.extend(sym_to_pytorch_string(expr_args[0], *sym_args))
+		str_list.append(', ')
+		str_list.extend(sym_to_pytorch_string(expr_args[1], *sym_args))
+		str_list.append(')')
+		return str_list
 	elif kind == sym.ExpressionKind.Sin:
 		return sym_to_pytorch_simple_fun('sin', expr_args[0], *sym_args)
 	elif kind == sym.ExpressionKind.Cos:
@@ -97,8 +114,12 @@ def sym_to_pytorch_string(expr, *sym_args):
 	elif kind == sym.ExpressionKind.Atan:
 		return sym_to_pytorch_simple_fun('atan', expr_args[0], *sym_args)
 	elif kind == sym.ExpressionKind.Atan2:
-		return 'torch.atan2(' + sym_to_pytorch_string(expr_args[0], *sym_args) + \
-			', ' + sym_to_pytorch_string(expr_args[1], *sym_args) + ')'
+		str_list.append('torch.atan2(')
+		str_list.extend(sym_to_pytorch_string(expr_args[0], *sym_args))
+		str_list.append(', ')
+		str_list.extend(sym_to_pytorch_string(expr_args[1], *sym_args))
+		str_list.append(')')
+		return str_list
 	elif kind == sym.ExpressionKind.Sinh:
 		return sym_to_pytorch_simple_fun('sinh', expr_args[0], *sym_args)
 	elif kind == sym.ExpressionKind.Cosh:
@@ -106,11 +127,19 @@ def sym_to_pytorch_string(expr, *sym_args):
 	elif kind == sym.ExpressionKind.Tanh:
 		return sym_to_pytorch_simple_fun('tanh', expr_args[0], *sym_args)
 	elif kind == sym.ExpressionKind.Min:
-		return 'torch.min(' + sym_to_pytorch_string(expr_args[0], *sym_args) + \
-			', ' + sym_to_pytorch_string(expr_args[1], *sym_args) + ')'
+		str_list.append('torch.min(')
+		str_list.extend(sym_to_pytorch_string(expr_args[0], *sym_args))
+		str_list.append(', ')
+		str_list.extend(sym_to_pytorch_string(expr_args[1], *sym_args))
+		str_list.append(')')
+		return str_list
 	elif kind == sym.ExpressionKind.Max:
-		return 'torch.max(' + sym_to_pytorch_string(expr_args[0], *sym_args) + \
-			', ' + sym_to_pytorch_string(expr_args[1], *sym_args) + ')'
+		str_list.append('torch.max(')
+		str_list.extend(sym_to_pytorch_string(expr_args[0], *sym_args))
+		str_list.append(', ')
+		str_list.extend(sym_to_pytorch_string(expr_args[1], *sym_args))
+		str_list.append(')')
+		return str_list
 	elif kind == sym.ExpressionKind.Ceil:
 		return sym_to_pytorch_simple_fun('ceil', expr_args[0], *sym_args)
 	elif kind == sym.ExpressionKind.Floor:
@@ -121,7 +150,11 @@ def sym_to_pytorch_string(expr, *sym_args):
 
 # Helper function to convert a simple function of a single argument
 def sym_to_pytorch_simple_fun(name, arg, *sym_args):
-	return 'torch.' + name + '(' + sym_to_pytorch_string(arg, *sym_args) + ')'
+	str_list = []
+	str_list.append('torch.' + name + '(')
+	str_list.extend(sym_to_pytorch_string(arg, *sym_args))
+	str_list.append(')')
+	return str_list
 
 def substitute_variable_string(var, *sym_args):
 	id_vectorized = np.vectorize(sym.Variable.get_id)
