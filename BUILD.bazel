@@ -11,6 +11,15 @@ py_binary(
 	]
 )
 
+py_binary(
+	name = "symbolic_plant_test",
+	srcs = ["symbolic_plant_test.py"],
+	deps = [
+		":symbolic",
+	]
+)
+
+
 py_library(
 	name = "symbolic",
 	srcs = ["symbolic.py"],
