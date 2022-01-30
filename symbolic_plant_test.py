@@ -1,17 +1,11 @@
-import pydrake.symbolic as sym
 import torch
 import symbolic
 import numpy as np
 
-
-from pydrake.common import FindResourceOrThrow
-from pydrake.multibody.parsing import Parser
-from pydrake.multibody.plant import AddMultibodyPlantSceneGraph
-from pydrake.systems.analysis import Simulator
-from pydrake.systems.framework import DiagramBuilder
-from pydrake.multibody.tree import JacobianWrtVariable
-
-from pydrake.all import (MultibodyForces_, Expression, RotationalInertia_, SpatialInertia_, UnitInertia_)
+from pydrake.all import (Parser, AddMultibodyPlantSceneGraph, DiagramBuilder,
+                         FindResourceOrThrow, MultibodyForces_, Expression,
+                         RotationalInertia_, SpatialInertia_, UnitInertia_,
+                         JacobianWrtVariable, MakeVectorVariable, Variable)
 
 #
 # Build the symbolic plant and context
@@ -30,21 +24,21 @@ context = sym_plant.CreateDefaultContext()
 #
 
 # position of the joint w.r.t. the base
-r_joint = sym.MakeVectorVariable(3, 'r_joint')
+r_joint = MakeVectorVariable(3, 'r_joint')
 
 # position of a point of interest on the arm body
-r = sym.MakeVectorVariable(3, 'r')
+r = MakeVectorVariable(3, 'r')
 
 # mass and inertia of the arm link
-m = sym.Variable('m')
+m = Variable('m')
 
 # NOTE: I is scaled by the mass, so the actual moment of inertia is m*I
 # This is moment of inertia about the link origin (joint), not COM
-I = sym.MakeVectorVariable(3, 'I')
+I = MakeVectorVariable(3, 'I')
 
 # pendulum state
-q = sym.MakeVectorVariable(sym_plant.num_positions(), 'q')
-v = sym.MakeVectorVariable(sym_plant.num_velocities(), 'v')
+q = MakeVectorVariable(sym_plant.num_positions(), 'q')
+v = MakeVectorVariable(sym_plant.num_velocities(), 'v')
 
 #
 # Pytorch copies of symbolic variables
@@ -56,8 +50,6 @@ I_pt = torch.tensor([.1, .2, .2])
 
 q_pt = torch.tensor([1.0])
 v_pt = torch.tensor([2.0])
-
-
 
 #
 # Set mass, inertia, and position variables
@@ -135,5 +127,5 @@ sym_plant.CalcForceElementsContribution(context, forces)
 M_pt = func_M(q_pt, r_joint_pt, m_pt, I_pt)
 
 
-# import pdb
-# pdb.set_trace()
+import pdb
+pdb.set_trace()
