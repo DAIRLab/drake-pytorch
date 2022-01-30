@@ -1,5 +1,5 @@
 import torch
-import symbolic
+import drake_pytorch
 import numpy as np
 
 from pydrake.all import (Parser, AddMultibodyPlantSceneGraph, DiagramBuilder,
@@ -106,14 +106,14 @@ M = sym_plant.CalcMassMatrixViaInverseDynamics(context)
 # 
 # Example: convert J to a function of (q,v,r,r,r_joint)
 #
-[func_J, string_J] = symbolic.sym_to_pytorch(J, q, v, r, r_joint)
+[func_J, string_J] = drake_pytorch.sym_to_pytorch(J, q, v, r, r_joint)
 J_pt = func_J(q_pt, v_pt, r_pt, r_joint_pt)
 
 #
 # Example: convert pos to a function with a single argument, stacked
 #   [q;r;r_joint]
 #
-[func_pos, string_pos] = symbolic.sym_to_pytorch(pos, np.hstack((q, r, r_joint)))
+[func_pos, string_pos] = drake_pytorch.sym_to_pytorch(pos, np.hstack((q, r, r_joint)))
 func_pos(torch.hstack((q_pt, r_pt, r_joint_pt)))
 
 forces = MultibodyForces_[Expression](sym_plant)
@@ -123,7 +123,7 @@ sym_plant.CalcForceElementsContribution(context, forces)
 #
 # Example: convert M to a function with multiple arguments (q, r_joint, m, I)
 #
-[func_M, string_M] = symbolic.sym_to_pytorch(M, q, r_joint, m, I)
+[func_M, string_M] = drake_pytorch.sym_to_pytorch(M, q, r_joint, m, I)
 M_pt = func_M(q_pt, r_joint_pt, m_pt, I_pt)
 
 

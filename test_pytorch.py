@@ -1,6 +1,6 @@
 import pydrake.symbolic as sym
 import torch
-import symbolic
+import drake_pytorch
 import numpy as np
 
 x = sym.MakeVectorVariable(5,'x')
@@ -15,10 +15,10 @@ expr_3 = x[0]*y[2] + sym.sin(x[1] + y[0])*y[1]
 expr_list = [expr_1, expr_2]
 expr_all = np.array([expr_1, expr_2, expr_3])
 
-[func, string] = symbolic.sym_to_pytorch(expr_1, x, y)
+[func, string] = drake_pytorch.sym_to_pytorch(expr_1, x, y)
 print(string)
 print(func(tx))
 
-[func, string] = symbolic.sym_to_pytorch(expr_list, x)
+[func, string] = drake_pytorch.sym_to_pytorch(expr_list, x)
 print(string)
 print(func(tx))
