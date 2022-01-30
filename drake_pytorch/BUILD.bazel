@@ -1,0 +1,13 @@
+# -*- mode: python -*-
+# vi: set ft=python :
+
+package(default_visibility = ["//visibility:public"])
+
+
+py_library(
+  name = "symbolic",
+  srcs = ["symbolic.py"],
+  deps = [
+    "@drake//bindings/pydrake",
+  ]
+)
