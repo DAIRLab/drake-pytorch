@@ -13,8 +13,10 @@ Requires torch and numpy to be locally installed.
 ## Installation
 ### pip
 This repository supports direct installation via `pip`.
-Note that `pip` installation is dependent on installing `drake` via pip, which is currently only supported on Linux with CPython versions 3.6-3.9.
-Due to the significant dependencies required, it is recommended to install in a virtual environment
+
+Note that `pip` installation is dependent on installing `drake` via pip, which is currently only supported on Linux with CPython versions 3.6-3.9. macOS support is [in progress](https://github.com/RobotLocomotion/drake/issues/15958).
+
+Due to the significant dependencies required, it is recommended to install in a virtual environment.
 
 ```
 python[3] -m venv drake-pytorch
