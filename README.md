@@ -18,6 +18,7 @@ Due to the significant dependencies required, it is recommended to install in a 
 
 ```
 python[3] -m venv drake-pytorch
+source drake-pytorch/bin/activate
 pip install --upgrade pip setuptools wheel
 pip install git+https://github.com/DAIRLab/drake-pytorch.git
 ```
