@@ -25,16 +25,20 @@ def sym_to_pytorch(expr, *sym_args):
 	elif isinstance(expr, list) or isinstance(expr, np.ndarray):
 		if isinstance(expr, np.ndarray):
 			shape = expr.shape
+			nonbatch_dims = len(shape)
 			expr = np.reshape(expr, -1)
 		else:
 			shape = (len(expr), 1)
-		str_list.append(f'def my_func(*{TORCH_ARGS}):\n  ret = torch.cat((')
+		str_list.append(f'def my_func(*{TORCH_ARGS}):\n')
+		# detect batch dimension list from first argument and assume the rest follow
+		str_list.append(f'  batch_dims = {TORCH_ARGS}[0].shape[:-{len(sym_args[0].shape)}]\n')
+		str_list.append('  ret = torch.cat((')
 		for expr_i in expr:
 			str_list.append("(")
 			str_list.extend(sym_to_pytorch_string(expr_i, *sym_args))
-			str_list.append(").view(1), ")
-		str_list.append('))\n')
-		str_list.append('  return torch.reshape(ret, ' + str(shape) + ')')
+			str_list.append(").unsqueeze(-1), ")
+		str_list.append('), dim = -1)\n')
+		str_list.append(f'  return torch.reshape(ret, batch_dims + {shape})')
 	else:
 		raise ValueError('expr must be a drake symbolic Expression or a list')
 	func_string = ''.join(str_list)
