@@ -15,10 +15,12 @@ import pydrake.symbolic as sym
 # 	The function takes a variable number of arguments, matching the list in
 #		sym_args
 # @return A string expressing the entire python function
+TORCH_ARGS = 't'
+
 def sym_to_pytorch(expr, *sym_args):
 	str_list = []
 	if isinstance(expr, sym.Expression):
-		str_list.append('def my_func(*torch_args):\n  return ')
+		str_list.append(f'def my_func(*{TORCH_ARGS}):\n  return ')
 		str_list.extend(sym_to_pytorch_string(expr, *sym_args))
 	elif isinstance(expr, list) or isinstance(expr, np.ndarray):
 		if isinstance(expr, np.ndarray):
@@ -26,14 +28,13 @@ def sym_to_pytorch(expr, *sym_args):
 			expr = np.reshape(expr, -1)
 		else:
 			shape = (len(expr), 1)
-		str_list.append('def my_func(*torch_args):\n  ret = torch.tensor([')
-		for expr_i in expr[:-1]:
+		str_list.append(f'def my_func(*{TORCH_ARGS}):\n  ret = torch.cat((')
+		for expr_i in expr:
+			str_list.append("(")
 			str_list.extend(sym_to_pytorch_string(expr_i, *sym_args))
-			str_list.append(", ")
-		str_list.extend(sym_to_pytorch_string(expr[-1], *sym_args))
-		str_list.append('])\n')
+			str_list.append(").view(1), ")
+		str_list.append('))\n')
 		str_list.append('  return torch.reshape(ret, ' + str(shape) + ')')
-		# print(func_string)
 	else:
 		raise ValueError('expr must be a drake symbolic Expression or a list')
 	func_string = ''.join(str_list)
@@ -62,10 +63,14 @@ def sym_to_pytorch_string(expr, *sym_args):
 	if kind == sym.ExpressionKind.Constant:
 		if len(expr_args) != 1:
 			raise ValueError('Unexpected symbolic Constant of length != 1')
-		return [str(expr_args[0])]
+		return ['torch.tensor(', str(expr_args[0]), ')']
 	elif kind == sym.ExpressionKind.Var:
 		return [substitute_variable_string(expr_args[0], *sym_args)]
 	elif kind == sym.ExpressionKind.Add:
+		if type(expr_args[0]) == float and expr_args[0] == 0.0:
+			if len(expr_args) <= 2:
+				return [sym_to_pytorch_string(expr_args[1], *sym_args)]
+			expr_args = expr_args[1:]
 		str_list.append('(')
 		str_list.extend(sym_to_pytorch_string(expr_args[0], *sym_args))
 		for arg in expr_args[1:]:
@@ -74,6 +79,10 @@ def sym_to_pytorch_string(expr, *sym_args):
 		str_list.append(')')
 		return str_list
 	elif kind == sym.ExpressionKind.Mul:
+		if type(expr_args[0]) == float and expr_args[0] == 1.0:
+			if len(expr_args) <= 2:
+				return [sym_to_pytorch_string(expr_args[1], *sym_args)]
+			expr_args = expr_args[1:]
 		str_list.append('(')
 		str_list.extend(sym_to_pytorch_string(expr_args[0], *sym_args))
 		for arg in expr_args[1:]:
@@ -95,11 +104,11 @@ def sym_to_pytorch_string(expr, *sym_args):
 	elif kind == sym.ExpressionKind.Exp:
 		return sym_to_pytorch_simple_fun('exp', expr_args[0], *sym_args)
 	elif kind == sym.ExpressionKind.Pow:
-		str_list.append('torch.pow(')
+		str_list.append('((')
 		str_list.extend(sym_to_pytorch_string(expr_args[0], *sym_args))
-		str_list.append(', ')
+		str_list.append(') ** (')
 		str_list.extend(sym_to_pytorch_string(expr_args[1], *sym_args))
-		str_list.append(')')
+		str_list.append('))')
 		return str_list
 	elif kind == sym.ExpressionKind.Sin:
 		return sym_to_pytorch_simple_fun('sin', expr_args[0], *sym_args)
@@ -159,9 +168,11 @@ def sym_to_pytorch_simple_fun(name, arg, *sym_args):
 def substitute_variable_string(var, *sym_args):
 	id_vectorized = np.vectorize(sym.Variable.get_id)
 	for index, sym_var in enumerate(sym_args):
-		# import pdb; pdb.set_trace()
-		var_index = np.where(id_vectorized(sym_var) == var.get_id())[0]
+		var_index = np.where(id_vectorized(sym_var) == var.get_id())
 
-		if len(var_index) == 1:
-			return 'torch_args[' + str(index) + '][' + str(var_index[0]) + ']'
+		if var_index[0].size > 0:
+			var_index_string = '[..., ' + \
+				', '.join([str(i[0]) for i in var_index]) + \
+				']'
+			return f'{TORCH_ARGS}[{index}]{var_index_string}'
 	raise ValueError('Expression contains variable not in sym_args list: ' + str(var))
