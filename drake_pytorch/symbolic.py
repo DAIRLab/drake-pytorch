@@ -4,18 +4,34 @@ import torch
 import pydrake.symbolic as sym
 import pdb
 import sympy
-from sympy import Symbol, sympify, simplify
+from sympy import Symbol, sympify, simplify, trigsimp
 from functools import reduce
 import operator
+from enum import Enum
 
 # string formatting literals
-TORCH_ARGS = 't'
+TORCH_ARGS = 'torch_args'
 INTERMEDIATE_VARIABLE_PREFIX = 'var'
 SYMPY_SYMBOL_PREFIX = 's'
 
-# Convert an expression to a function in pytorch. The arguments for the returned
-# function are be `x[i]`, where index `i` is derived from the ordering
-# in `sym_args`. Returns [func, func_string]
+# simplification settings
+class Simplifier(Enum):
+	ALL = 1
+	TRIGONLY = 2
+	QUICKTRIG = 4
+	NONE = 4
+
+_simplifier_map = {
+	Simplifier.ALL: simplify,
+	Simplifier.TRIGONLY: trigsimp,
+	Simplifier.QUICKTRIG: lambda x: trigsimp(x, quick=True),
+	Simplifier.NONE: lambda x: x
+}
+
+
+# Convert an expression to a function in pytorch. The arguments for the
+# returned function are be `x[i]`, where index `i` is derived from the
+# ordering in `sym_args`. Returns [func, func_string]
 # 
 # @param expr Either a pydrake.symbolic.Expression, or a list of expressions
 # @param *sym_args The arguments to the symbolic expression. Multiple arguments
@@ -25,7 +41,10 @@ SYMPY_SYMBOL_PREFIX = 's'
 # 	The function takes a variable number of arguments, matching the list in
 #		sym_args
 # @return A string expressing the entire python function
-def sym_to_pytorch(expr, *sym_args, simplify_computation=True):
+
+
+def sym_to_pytorch(expr, *sym_args, simplify_computation=Simplifier.ALL):
+	simplifier = _simplifier_map[simplify_computation]
 	str_list = []
 	str_list.append(f'def my_func(*{TORCH_ARGS}):\n')
 	# detect batch dimension list from first argument and assume the rest follow
@@ -35,7 +54,7 @@ def sym_to_pytorch(expr, *sym_args, simplify_computation=True):
 		vardict = {}
 		sympy_expr_i = sym_to_sympy(expr, vardict)
 		if simplify_computation:
-			sympy_expr_i = simplify(sympy_expr_i)
+			sympy_expr_i = simplifier(sympy_expr_i)
 		rev_vardict = {vardict[k]:k for k in vardict}
 		expr_name = sympy_to_pytorch_string(sympy_expr_i, {}, python_lines, rev_vardict, sym_args)
 		str_list.extend(python_lines)
@@ -54,7 +73,7 @@ def sym_to_pytorch(expr, *sym_args, simplify_computation=True):
 		for i, expr_i in enumerate(expr):
 			sympy_expr_i = sym_to_sympy(expr_i, vardict)
 			if simplify_computation:
-				sympy_expr_i = simplify(sympy_expr_i)
+				sympy_expr_i = simplifier(sympy_expr_i)
 			rev_vardict = {vardict[k]:k for k in vardict}
 			expr_names.append(sympy_to_pytorch_string(sympy_expr_i, memos, python_lines, rev_vardict, sym_args))
 		str_list.extend(python_lines)
@@ -132,7 +151,15 @@ def _fastpow_string(xpower):
 	return f'{x} ** {power}'
 
 def _sympy_constant_string(x):
-	return f'torch.tensor({float(x)}) * torch.ones(batch_dims)'
+	return f'{float(x)} * torch.ones(batch_dims)'
+
+def _sympy_expression_key(expr):
+	expr_top_level = expr.func
+	if issubclass(expr_top_level, sympy.Number) or \
+		issubclass(expr_top_level, sympy.NumberSymbol):
+		return sympy.Float(expr)
+	else:
+		return expr
 
 
 _torch_ops = {
@@ -219,18 +246,21 @@ def sym_to_sympy(expr, vardict):
 # @return The variable name the expression is stored in to
 def sympy_to_pytorch_string(expr, memos, lines, vardict, sym_args):
 	#pdb.set_trace()
-	if expr in memos:
-		return memos[expr]
+	expr_key = _sympy_expression_key(expr)
+	if expr_key in memos:
+		return memos[expr_key]
 	expr_top_level = expr.func
 	if issubclass(expr_top_level, sympy.Number) or \
 		issubclass(expr_top_level, sympy.NumberSymbol):
 		# number, add float
-		value = f'torch.tensor({float(expr)}) * torch.ones(batch_dims)'
+		value = _sympy_constant_string(expr)
+
 	elif issubclass(expr_top_level, sympy.Symbol):
 		# variable, index into
 		value = substitute_variable_id_string(vardict[expr], sym_args)
-	else:
 
+	else:
+		# get equivalent torch operation
 		torch_string_callback = _torch_ops[expr_top_level]
 
 		# squaring and inversion hacks
@@ -249,7 +279,7 @@ def sympy_to_pytorch_string(expr, memos, lines, vardict, sym_args):
 			for arg in expr_args]
 		value = torch_string_callback(args)
 	name = f'{INTERMEDIATE_VARIABLE_PREFIX}_{len(memos)}'
-	memos[expr] = name
+	memos[expr_key] = name
 	lines.append(f'  {name} = {value}\n')
 	return name
 
