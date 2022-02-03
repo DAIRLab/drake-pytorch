@@ -11,8 +11,6 @@ This supports both single and vector (via Python lists) expressions, which can
 be converted to a function of a variable number of arguments. The generated
 function supports arbitrary prefix batching.
 
-Requires torch and numpy to be locally installed.
-
 ## Installation
 ### pip
 This repository supports direct installation via `pip`.
