@@ -2,13 +2,14 @@
 A simple library to convert Drake symbolic expressions to PyTorch functions,
 which can then be evaluated and differentiated on PyTorch Tensors.
 
-In the interest of efficiency, this is done by converting the symbolic
-expression to a string, and then that string to a Python function.
+In the interest of computational efficiency, the Drake symbolic expression
+is first converted to an intermediate SymPy symbolic expression for rewrite
+simplification; then the simplified expression is converted to a Python function
+that efficiently computes the final expression via dynamic programming.
 
 This supports both single and vector (via Python lists) expressions, which can
-be converted to a function of a variable number of arguments.
-
-Requires torch and numpy to be locally installed.
+be converted to a function of a variable number of arguments. The generated
+function supports arbitrary prefix batching.
 
 ## Installation
 ### pip

@@ -50,6 +50,7 @@ I_pt = torch.tensor([.1, .2, .2])
 
 q_pt = torch.tensor([1.0])
 v_pt = torch.tensor([2.0])
+tau_pt = torch.tensor([-1])
 
 #
 # Set mass, inertia, and position variables
@@ -126,6 +127,12 @@ sym_plant.CalcForceElementsContribution(context, forces)
 [func_M, string_M] = drake_pytorch.sym_to_pytorch(M, q, r_joint, m, I)
 M_pt = func_M(q_pt, r_joint_pt, m_pt, I_pt)
 
+#
+# Example: foward dynamics (the right hand side, where M(q)*vdot = right_hand_side)
+#
+tau = Variable('tau')
+right_hand_side = -sym_plant.CalcBiasTerm(context) + sym_plant.MakeActuationMatrix() * tau + sym_plant.CalcGravityGeneralizedForces(context)
+[func_rhs, string_rhs] = drake_pytorch.sym_to_pytorch(right_hand_side, q, v, tau, r_joint, m, I)
+rhs_pt = func_rhs(q_pt, v_pt, tau_pt, r_joint_pt, m_pt, I_pt)
 
-import pdb
-pdb.set_trace()
+import pdb; pdb.set_trace()
