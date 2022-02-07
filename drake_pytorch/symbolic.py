@@ -289,7 +289,7 @@ def substitute_variable_id_string(var_id, sym_args):
 		var_index = np.where(id_vectorized(sym_var) == var_id)
 
 		if var_index[0].size > 0:
-			var_index_string = '[:, ' + \
+			var_index_string = '[..., ' + \
 				', '.join([str(i[0]) for i in var_index]) + \
 				']'
 			return f'{TORCH_ARGS}[{index}]{var_index_string}'
