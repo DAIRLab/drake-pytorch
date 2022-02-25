@@ -286,6 +286,8 @@ def sympy_to_pytorch_string(expr, memos, lines, vardict, sym_args):
 def substitute_variable_id_string(var_id, sym_args):
 	id_vectorized = np.vectorize(sym.Variable.get_id)
 	for index, sym_var in enumerate(sym_args):
+		if len(sym_var) == 0:
+			continue
 		var_index = np.where(id_vectorized(sym_var) == var_id)
 
 		if var_index[0].size > 0:

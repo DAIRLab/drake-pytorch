@@ -99,7 +99,7 @@ q[0:4] /= q[0:4].norm()
 #pdb.set_trace()
 print('Estimating computational cost')
 N = 2 ** 10
-BATCH = N
+BATCH = 2 ** 6
 
 T_sym = timeit.timeit(lambda: func_M(q, bivm).sum().backward(retain_graph=True), number=N)
 T_sym_batch = timeit.timeit(lambda: func_M(q.unsqueeze(0).repeat(BATCH, 1), bivm.unsqueeze(0).repeat(BATCH, 1, 1)).sum().backward(retain_graph=True), number=N // BATCH)
