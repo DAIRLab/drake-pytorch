@@ -1,5 +1,5 @@
 from setuptools import setup
-install_reqs = ['torch', 'sympy']
+install_reqs = ['torch', 'sympy', 'typing_extensions']
 try:
     import pydrake
     print('USING FOUND DRAKE VERSION')
